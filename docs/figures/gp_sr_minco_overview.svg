@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="920" viewBox="0 0 1360 920" role="img" aria-labelledby="title description">
+  <title id="title">GP-SR-MINCO: global proposal and shared local refinement</title>
+  <desc id="description">Panel a shows a single LiDAR backbone producing coarse and fine memories. A state-conditioned query reads coarse memory through three independent global decoder layers. One shared refiner is called three times with fresh fine-memory lookups. Only the final parameters are decoded by MINCO at inference. Panel b shows current parameters branching into action encoding and Hermite lookup support. Reused state context forms the query, and local fine-memory features with relative geometry form keys and values.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#465461"/>
+    </marker>
+    <marker id="fine-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#387862"/>
+    </marker>
+    <style>
+      text { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 18px; fill: #202c35; }
+      .heading { font-size: 21px; font-weight: 700; }
+      .label { text-anchor: middle; }
+      .small { font-size: 16px; fill: #45545e; }
+      .note { font-size: 16px; fill: #58656f; }
+      .math { font-family: "DejaVu Sans", Arial, sans-serif; font-style: italic; }
+      .panel { fill: #ffffff; stroke: #c6cdd3; stroke-width: 1.3; }
+      .input { fill: #f5f6f7; stroke: #77838d; stroke-width: 1.6; }
+      .env { fill: #edf3fa; stroke: #527799; stroke-width: 1.6; }
+      .global { fill: #f1eef8; stroke: #83749d; stroke-width: 1.6; }
+      .local { fill: #edf6f1; stroke: #4c8872; stroke-width: 1.6; }
+      .flow { fill: none; stroke: #465461; stroke-width: 2; marker-end: url(#arrow); stroke-linejoin: round; }
+      .fine-flow { fill: none; stroke: #387862; stroke-width: 2; marker-end: url(#fine-arrow); stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1360" height="920" fill="#ffffff"/>
+  <rect class="panel" x="20" y="20" width="1320" height="400" rx="10"/>
+  <text class="heading" x="40" y="51">(a) Overall architecture</text>
+
+  <!-- Single backbone, with fine and coarse memory outputs. -->
+  <rect class="input" x="40" y="96" width="170" height="68" rx="6"/>
+  <text class="label" x="125" y="124">Range image</text>
+  <text class="label small" x="125" y="148">1 × 30 × 180</text>
+  <rect class="env" x="250" y="80" width="180" height="100" rx="6"/>
+  <text class="label" x="340" y="110">Shared LiDAR</text>
+  <text class="label" x="340" y="136">backbone</text>
+  <text class="label small" x="340" y="160">dual-scale features</text>
+  <path class="flow" d="M 210 130 H 250"/>
+
+  <rect class="local" x="490" y="65" width="170" height="62" rx="6"/>
+  <text class="label" x="575" y="91">Fine memory</text>
+  <text class="label small" x="575" y="114">30 × 180</text>
+  <rect class="env" x="490" y="157" width="170" height="62" rx="6"/>
+  <text class="label" x="575" y="183">Coarse memory</text>
+  <text class="label small" x="575" y="206">15 × 90</text>
+  <path class="flow" d="M 430 130 H 455 V 96 H 490"/>
+  <path class="flow" d="M 455 130 V 188 H 490"/>
+  <circle cx="455" cy="130" r="3" fill="#465461"/>
+  <path class="fine-flow" d="M 660 96 H 1045 V 284"/>
+  <path class="flow" d="M 660 188 H 810 V 284"/>
+  <text class="small" x="685" y="179">full-view K/V</text>
+  <text class="small" x="873" y="87">local K/V</text>
+
+  <!-- State and reference form one global query. -->
+  <rect class="input" x="40" y="294" width="170" height="68" rx="6"/>
+  <text class="label" x="125" y="322">Body-frame state</text>
+  <text class="label small" x="125" y="346">v₀, a₀, goal</text>
+  <rect class="global" x="250" y="277" width="180" height="102" rx="6"/>
+  <text class="label" x="340" y="305">State encoding</text>
+  <text class="label small" x="340" y="331">constant-velocity</text>
+  <text class="label small" x="340" y="354">reference</text>
+  <path class="flow" d="M 210 328 H 250"/>
+  <rect class="global" x="490" y="294" width="170" height="68" rx="6"/>
+  <text class="label" x="575" y="322">Joint query</text>
+  <text class="label small" x="575" y="346">state + parameters</text>
+  <path class="flow" d="M 430 328 H 490"/>
+
+  <rect class="global" x="725" y="284" width="170" height="88" rx="6"/>
+  <text class="label" x="810" y="309">Global proposal</text>
+  <text class="label small" x="810" y="334">3 decoder layers</text>
+  <text class="label small" x="810" y="356">distinct weights</text>
+  <path class="flow" d="M 660 328 H 725"/>
+  <text class="small" x="686" y="315">Q</text>
+
+  <rect class="local" x="950" y="284" width="190" height="88" rx="6"/>
+  <text class="label" x="1045" y="309">Shared refiner</text>
+  <text class="label small" x="1045" y="334">3 calls, same weights</text>
+  <text class="label small" x="1045" y="356">fresh local lookup</text>
+  <path class="flow" d="M 895 328 H 950"/>
+  <text class="label math" x="922" y="315">z₀</text>
+
+  <rect class="input" x="1175" y="284" width="140" height="88" rx="6"/>
+  <text class="label" x="1245" y="309">MINCO</text>
+  <text class="label small" x="1245" y="334">final trajectory</text>
+  <text class="label small" x="1245" y="356">start: v₀, a₀</text>
+  <path class="flow" d="M 1140 328 H 1175"/>
+  <text class="label math" x="1158" y="315">z₃</text>
+  <text class="note" x="250" y="402">State context is reused in all refinement calls; inference decodes only z₃.</text>
+
+  <rect class="panel" x="20" y="440" width="1320" height="460" rx="10"/>
+  <text class="heading" x="40" y="473">(b) One shared refinement step</text>
+
+  <!-- Current parameters branch into query encoding and lookup geometry. -->
+  <rect class="input" x="45" y="610" width="165" height="70" rx="6"/>
+  <text class="label" x="127" y="636">Parameters</text>
+  <text class="label math" x="127" y="661">zₖ₋₁</text>
+  <path class="flow" d="M 210 645 H 243 V 551 H 280"/>
+  <path class="flow" d="M 243 645 V 750 H 280"/>
+  <circle cx="243" cy="645" r="3" fill="#465461"/>
+
+  <rect class="global" x="280" y="520" width="180" height="62" rx="6"/>
+  <text class="label" x="370" y="546">Parameter MLP</text>
+  <text class="label small" x="370" y="569">current action</text>
+  <rect class="global" x="505" y="494" width="190" height="54" rx="6"/>
+  <text class="label small" x="600" y="526">Reused state context</text>
+  <rect class="global" x="505" y="580" width="190" height="68" rx="6"/>
+  <text class="label" x="600" y="607">Joint query</text>
+  <text class="label small" x="600" y="631">concatenated features</text>
+  <path class="flow" d="M 460 551 H 482 V 614 H 505"/>
+  <path class="flow" d="M 600 548 V 580"/>
+
+  <rect class="local" x="280" y="710" width="180" height="80" rx="6"/>
+  <text class="label" x="370" y="737">Hermite proxy</text>
+  <text class="label small" x="370" y="763">10 lookup positions</text>
+  <rect class="local" x="520" y="710" width="200" height="80" rx="6"/>
+  <text class="label" x="620" y="735">Local context</text>
+  <text class="label small" x="620" y="758">full windows</text>
+  <text class="label small" x="620" y="780">+ relative geometry</text>
+  <path class="flow" d="M 460 750 H 520"/>
+  <rect class="local" x="525" y="826" width="190" height="48" rx="6"/>
+  <text class="label small" x="620" y="856">Reused fine memory</text>
+  <path class="fine-flow" d="M 620 826 V 790"/>
+
+  <rect class="local" x="835" y="597" width="210" height="104" rx="6"/>
+  <text class="label" x="940" y="626">Shared refinement</text>
+  <text class="label small" x="940" y="653">Cross-attention + FFN</text>
+  <text class="label small" x="940" y="679">joint residual update</text>
+  <path class="flow" d="M 695 614 H 770 V 630 H 835"/>
+  <text class="small" x="795" y="619">Q</text>
+  <path class="fine-flow" d="M 720 750 H 770 V 676 H 835"/>
+  <text class="small" x="786" y="700">K/V</text>
+
+  <rect class="input" x="1120" y="615" width="195" height="68" rx="6"/>
+  <text class="label" x="1217" y="642">Parameters</text>
+  <text class="label math" x="1217" y="667">zₖ</text>
+  <path class="flow" d="M 1045 649 H 1120"/>
+
+  <text class="small" x="835" y="753">Windows: 9 × 17 → 5 × 9 → 3 × 5</text>
+  <text class="note" x="835" y="783">Query and local support are rebuilt at each call.</text>
+  <text class="note" x="45" y="868">Training: stop-gradient on previous parameters.</text>
+</svg>

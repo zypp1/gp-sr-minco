@@ -1,0 +1,24 @@
+<launch>
+    <arg name="sim_config_path"
+         default="$(find perfect_drone_sim)/config/nmp_mid360.yaml"/>
+    <arg name="planner_config_path"
+         default="$(find super_planner)/config/nmp.yaml"/>
+
+    <node pkg="perfect_drone_sim" type="perfect_drone" name="perfect_drone" output="log">
+        <!-- MARSIM renders into a hidden GLFW window. Disable swap synchronization so a
+             sleeping display cannot throttle the sensor loop to the driver's 1 Hz fallback. -->
+        <env name="__GL_SYNC_TO_VBLANK" value="0"/>
+        <env name="vblank_mode" value="0"/>
+        <param name="config_path" value="$(arg sim_config_path)" type="string"/>
+    </node>
+
+    <node pkg="super_planner" name="fsm_node" type="fsm_node" output="screen">
+        <param name="config_path" value="$(arg planner_config_path)" type="string"/>
+    </node>
+
+    <node pkg="rviz" type="rviz" name="top_down"
+          args="-d $(find perfect_drone_sim)/rviz/top_down.rviz" output="log"/>
+    <node pkg="rviz" type="rviz" name="fpv"
+          args="-d $(find perfect_drone_sim)/rviz/fpv.rviz" output="log"/>
+
+</launch>

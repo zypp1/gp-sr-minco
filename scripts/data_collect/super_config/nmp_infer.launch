@@ -1,0 +1,40 @@
+<launch>
+    <arg name="sim_config_path"
+         default="$(find perfect_drone_sim)/config/nmp_mid360.yaml"/>
+    <arg name="rviz" default="true"/>
+    <arg name="global_viz_z_max" default="4.0"/>
+
+    <!-- The neural node owns /planning/pos_cmd in this launch.  Deliberately do
+         not start super_planner/fsm_node, otherwise two planners would command
+         PerfectDrone concurrently. -->
+    <node pkg="perfect_drone_sim" type="perfect_drone" name="perfect_drone" output="log">
+        <env name="__GL_SYNC_TO_VBLANK" value="0"/>
+        <env name="vblank_mode" value="0"/>
+        <param name="config_path" value="$(arg sim_config_path)" type="string"/>
+    </node>
+
+    <group if="$(arg rviz)">
+        <!-- Visualization-only world-Z crop. PerfectDrone's original /global_pc
+             remains unchanged for every non-RViz consumer. -->
+        <node pkg="nodelet" type="nodelet" name="global_cloud_visual_filter"
+              args="standalone pcl/PassThrough" output="log">
+            <remap from="~input" to="/global_pc"/>
+            <remap from="~output" to="/nmp/global_pc_visual"/>
+            <rosparam subst_value="true">
+                filter_field_name: z
+                filter_limit_min: -1000000.0
+                filter_limit_max: $(arg global_viz_z_max)
+                filter_limit_negative: false
+            </rosparam>
+        </node>
+
+        <node pkg="rviz" type="rviz" name="top_down"
+              args="-d $(find perfect_drone_sim)/rviz/top_down.rviz" output="log">
+            <remap from="/global_pc" to="/nmp/global_pc_visual"/>
+        </node>
+        <node pkg="rviz" type="rviz" name="fpv"
+              args="-d $(find perfect_drone_sim)/rviz/fpv.rviz" output="log">
+            <remap from="/global_pc" to="/nmp/global_pc_visual"/>
+        </node>
+    </group>
+</launch>

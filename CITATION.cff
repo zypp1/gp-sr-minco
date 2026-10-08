@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "GP-SR-MINCO: Global Proposal and Shared Local Refinement for Single-Frame LiDAR Local Planning"
+abstract: >-
+  A learning-based local planner for quadrotors that predicts a smooth two-second trajectory from a single 360-degree
+  LiDAR scan and the current motion state in one forward pass.
+authors:
+  - family-names: Zheng
+    given-names: Yipin
+repository-code: "https://github.com/zypp1/gp-sr-minco"
+license: MIT
+date-released: 2026-10-08
+keywords:
+  - motion planning
+  - quadrotor
+  - LiDAR
+  - imitation learning
+  - trajectory generation
+  - MINCO

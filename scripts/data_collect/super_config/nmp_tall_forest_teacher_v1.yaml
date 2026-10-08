@@ -1,0 +1,161 @@
+# Tall-forest collection teacher.
+#
+# This preserves the validated nmp.yaml planning, mapping, and 6/6/12 project
+# envelope while making two explicit collection-teacher changes: use the same
+# 0.3 m body radius as the planner collision metric, and retain a 0.5 m/s^3
+# internal jerk guard band because PerfectDrone playback of the nominal
+# 12 m/s^3 constraint reached 12.225 m/s^3 in the pilot Episodes.
+
+fsm:
+  click_goal_en: true
+  click_goal_topic: "/planning/click_goal"
+  click_height: 1.5
+  click_yaw_en: true
+  replan_rate: 15.0
+  cmd_topic: "/planning/pos_cmd"
+  mpc_cmd_topic: "/planning_cmd/poly_traj"
+  timer_en: true
+
+super_planner:
+  backup_traj_en: true
+  detailed_log_en: false
+  visualization_en: true
+  use_fov_cut: false
+  print_log: false
+  visual_process: false
+  frontend_in_known_free: false
+  goal_yaw_en: true
+  goal_vel_en: false
+  corridor_bound_dis: 1.0
+  corridor_line_max_length: 1.2
+  safe_corridor_line_max_length: 5.0
+  iris_iter_num: 2
+  obs_skip_num: 2
+  replan_forward_dt: 0.1
+  planning_horizon: 7.0
+  sensing_horizon: -1
+  receding_dis: 4.0
+  robot_r: 0.3
+  yaw_dot_max: 2.5
+  yaw_mode: 1
+  mpc_horizon: 15
+
+traj_opt:
+  switch:
+    save_log_en: false
+    print_optimizer_log: false
+
+  boundary:
+    max_vel: 6.0
+    max_acc: 6.0
+    max_jerk: 11.5
+    max_omg: 2.0
+    max_acc_thr: 15.0
+    min_acc_thr: 6.0
+    penna_margin: 0.05
+
+  exp_traj:
+    pos_constraint_type: 1
+    energy_cost_type: 4
+    block_energy_cost: false
+    opt_accuracy: 5.0e-6
+    scale_factor: 1.0
+    integral_reso: 15
+    smooth_eps: 0.01
+    penna_t: 12000.0
+    penna_pos: 5.0e+6
+    penna_vel: 5.0e+5
+    penna_acc: 5.0e+5
+    penna_jerk: 5.0e+5
+    penna_attract: 1.0e+3
+    penna_omg: 5.0e+5
+    penna_thr: 1.0e+5
+
+  backup_traj:
+    uniform_time_en: true
+    pos_constraint_type: 1
+    piece_num: 2
+    energy_cost_type: 4
+    block_energy_cost: true
+    opt_accuracy: 1.0e-6
+    scale_factor: 1.0
+    integral_reso: 12
+    smooth_eps: 0.01
+    penna_t: 1200.0
+    penna_ts: 1.0e+5
+    penna_pos: 1.0e+6
+    penna_vel: 1.0e+5
+    penna_acc: 1.0e+5
+    penna_jerk: 1.0e+5
+    penna_omg: 1.0e+5
+    penna_thr: 1.0e+5
+
+  flatness:
+    mass: 1.64
+    dh: 0.35
+    dv: 0.35
+    cp: 0.001
+    v_eps: 0.0001
+    grav: 9.81
+
+astar:
+  map_voxel_num: [500, 500, 100]
+  visual_process: false
+  allow_diag: true
+  heu_type: 2
+  debug_visualization_en: false
+
+rog_map:
+  resolution: 0.1
+  inflation_resolution: 0.2
+  inflation_step: 2
+  unk_inflation_en: false
+  unk_inflation_step: 1
+  map_size: [50, 50, 6]
+  fix_map_origin: [0, 0, 1.5]
+  frontier_extraction_en: false
+
+  virtual_ceil_height: 3.5
+  virtual_ground_height: -0.1
+
+  load_pcd_en: false
+
+  map_sliding:
+    enable: true
+    threshold: 0.3
+
+  esdf:
+    enable: false
+    resolution: 0.1
+    local_update_box: [5, 5, 3]
+
+  ros_callback:
+    enable: true
+    cloud_topic: "/cloud_registered"
+    odom_topic: "/lidar_slam/odom"
+    odom_timeout: 2.0
+
+  visualization:
+    enable: true
+    use_dynamic_reconfigure: false
+    time_rate: 2
+    frame_rate: 0
+    range: [15, 15, 4]
+    frame_id: "world"
+    pub_unknown_map_en: false
+
+  intensity_thresh: -10
+  point_filt_num: 1
+
+  raycasting:
+    enable: false
+    batch_update_size: 1
+    local_update_box: [100, 100, 5]
+    ray_range: [0.5, 100]
+    p_min: 0.12
+    p_miss: 0.49
+    p_free: 0.499
+    p_occ: 0.85
+    p_hit: 0.9
+    p_max: 0.98
+    unk_thresh: 1.0

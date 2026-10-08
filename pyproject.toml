@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gp-sr-minco"
+version = "0.0.1"
+description = "GP-SR-MINCO — global proposal and shared local refinement for single-frame LiDAR local planning"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Yipin Zheng" }]
+keywords = ["motion planning", "quadrotor", "LiDAR", "imitation learning", "trajectory generation", "MINCO"]
+# torch is intentionally omitted: install the wheel matching your machine first (see README / requirements.txt).
+dependencies = ["numpy", "scipy", "tqdm", "tensorboard==2.14.0"]
+
+[project.urls]
+Homepage = "https://github.com/zypp1/gp-sr-minco"
+Documentation = "https://github.com/zypp1/gp-sr-minco/tree/main/docs"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["neural_minco"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["neural_minco", "utils"]
+split-on-trailing-comma = false
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/data_collect/collect.py" = ["E402", "I001"]

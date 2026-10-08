@@ -1,0 +1,18 @@
+# Python 3.8 (ROS Noetic). Versions are verified in the local Conda environment named `planner`.
+# Activate it for training, evaluation, inference, and data collection:
+#   conda activate planner
+# Before ROS collection or online inference, also source /opt/ros/noetic/setup.bash and the SUPER workspace.
+#
+# torch: install the build matching your machine FIRST, then `pip install -r requirements.txt`:
+#   GPU (collection/training box):  pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+#   CPU only:                       pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+# core package + tests:
+torch==2.4.1
+numpy==1.24.4
+scipy==1.10.1
+tqdm==4.68.4           # training and evaluation progress bars
+tensorboard==2.14.0    # run-local training curves; supports Python 3.8
+pytest==8.3.5
+ruff==0.15.16
+# visualization only (not needed to import neural_minco or run tests):
+matplotlib==3.1.2      # scripts/visualize.py

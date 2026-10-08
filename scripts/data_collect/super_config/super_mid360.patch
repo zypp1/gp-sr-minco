@@ -1,0 +1,449 @@
+diff --git a/mars_uav_sim/marsim_render/config/pattern/360camera.vs b/mars_uav_sim/marsim_render/config/pattern/360camera.vs
+index 9bfe790..1e44c16 100644
+--- a/mars_uav_sim/marsim_render/config/pattern/360camera.vs
++++ b/mars_uav_sim/marsim_render/config/pattern/360camera.vs
+@@ -13,6 +13,7 @@ uniform vec3 pos;
+ 
+ // uniform vec3 ()
+ uniform vec2 fov;
++uniform float vertical_fov_center;
+ uniform vec2 res;
+ // uniform float downsample_res;
+ // uniform float polar_res;
+@@ -72,7 +73,8 @@ void main()
+ 		ourColor = aColor;
+ 	}else{
+ 		y_x = -(atan(bodypos.y,bodypos.x))/(PI)* (360.0/fov.x);// 
+-		z_yx = (atan((bodypos.z),sqrt(bodypos.x*bodypos.x + bodypos.y*bodypos.y))/PI)* (360.0/fov.y) ;//
++		float elevation_deg = atan((bodypos.z),sqrt(bodypos.x*bodypos.x + bodypos.y*bodypos.y)) / PI * 180.0;
++		z_yx = (elevation_deg - vertical_fov_center) * (2.0/fov.y);
+ 		// depth = (depth + 1.0) * 2.0;
+ 		gl_Position = vec4(y_x, z_yx, depth/range.y, 1.0f);
+ 		// int half_cover_angle = ceil((asin(cover_dis / 1.0) / (PI * polar_res / 180.0)));//dot(aPos,aPos)
+@@ -125,4 +127,4 @@ void main()
+ 	// 	gl_Position = vec4(0.0f,0.0f,0.0f,0.0f);
+ 	// }
+ 	ourColor = aColor;
+-}
+\ No newline at end of file
++}
+diff --git a/mars_uav_sim/marsim_render/include/marsim_render/config.hpp b/mars_uav_sim/marsim_render/include/marsim_render/config.hpp
+index 8fe6ac7..0195437 100644
+--- a/mars_uav_sim/marsim_render/include/marsim_render/config.hpp
++++ b/mars_uav_sim/marsim_render/include/marsim_render/config.hpp
+@@ -64,6 +64,8 @@ namespace marsim {
+             loader.LoadParam("downsample_res", downsample_res, 0.05f, false);
+             loader.LoadParam("yaw_fov", yaw_fov, 360.0f, false);
+             loader.LoadParam("vertical_fov", vertical_fov, 77.4f, false);
++            loader.LoadParam("vertical_fov_center", vertical_fov_center, 0.0f, false);
++            loader.LoadParam("point_rate", point_rate, 200000, false);
+             loader.LoadParam("depth_image_en", depth_image_en, false, false);
+             loader.LoadParam("inf_point_en", inf_point_en, false, false);
+             loader.LoadParam("print_time_consumption", print_time_consumption, false, false);
+@@ -83,12 +85,14 @@ namespace marsim {
+         decimal_t downsample_res = 0.01;
+         decimal_t yaw_fov = 70.4;
+         decimal_t vertical_fov = 77.4;
++        decimal_t vertical_fov_center = 0.0;
+         decimal_t sensing_blind = 0.1;
+         decimal_t sensing_horizon = 10;
+         decimal_t cover_dis = 0.55 * 1.7321 * downsample_res;
+         decimal_t effect_range = 0.0;
+         decimal_t polar_resolution_max = 1.0 / fx * (cos(1) * cos(1)) * 180 / M_PI;
+         int sensing_rate = 10;
++        int point_rate = 200000;
+         int lidar_type = LiDARType::UNDEFINED;
+         std::string pcd_name{};
+ 
+diff --git a/mars_uav_sim/marsim_render/include/marsim_render/marsim_render.hpp b/mars_uav_sim/marsim_render/include/marsim_render/marsim_render.hpp
+index 7c496d6..18d8f99 100644
+--- a/mars_uav_sim/marsim_render/include/marsim_render/marsim_render.hpp
++++ b/mars_uav_sim/marsim_render/include/marsim_render/marsim_render.hpp
+@@ -137,14 +137,14 @@ namespace marsim {
+ 
+         void renderOnceInWorld(const Eigen::Vector3f& camera_pos,
+                                const Eigen::Quaternionf& camera_q,
+-                               const decimal_t& t_pattern_start,
++                               const double& t_pattern_start,
+                                pcl::PointCloud<PointType>::Ptr output_pointcloud) {
+             render_pointcloud(camera_pos, camera_q, t_pattern_start, output_pointcloud);
+         }
+ 
+         void renderOnceInBody(const Eigen::Vector3f& camera_pos,
+                                const Eigen::Quaternionf& camera_q,
+-                               const decimal_t& t_pattern_start,
++                               const double& t_pattern_start,
+                                pcl::PointCloud<PointType>::Ptr point_in_sensor) {
+             pcl::PointCloud<PointType>::Ptr local_map(new pcl::PointCloud<PointType>);
+             render_pointcloud(camera_pos, camera_q, t_pattern_start, local_map);
+@@ -191,7 +191,7 @@ namespace marsim {
+ 
+         void render_pointcloud(const Eigen::Vector3f& camera_pos,
+                                const Eigen::Quaternionf& camera_q,
+-                               const decimal_t& t_pattern_start,
++                               const double& t_pattern_start,
+                                pcl::PointCloud<PointType>::Ptr output_pointcloud);
+ 
+         void input_dyn_clouds(pcl::PointCloud<pcl::PointXYZI> input_cloud);
+diff --git a/mars_uav_sim/marsim_render/src/marsim_render.cpp b/mars_uav_sim/marsim_render/src/marsim_render.cpp
+index e5477e1..5429578 100644
+--- a/mars_uav_sim/marsim_render/src/marsim_render.cpp
++++ b/mars_uav_sim/marsim_render/src/marsim_render.cpp
+@@ -171,7 +171,7 @@ namespace marsim {
+     void MarsimRender::render_pointcloud(
+         const Eigen::Vector3f& camera_pos,
+         const Eigen::Quaternionf& camera_q,
+-        const decimal_t& t_pattern_start,
++        const double& t_pattern_start,
+         pcl::PointCloud<PointType>::Ptr output_pointcloud
+     ) {
+         ScopeTimer timer("TOTAL", cfg_.print_time_consumption);
+@@ -185,10 +185,10 @@ namespace marsim {
+                 decimal_t w2 = -488.41293788; // -4664.0*2.0*3.1415926/60.0
+                 // int linestep = 2;
+                 // decimal_t point_duration = 0.000025;
+-                decimal_t point_duration = 0.000004167 * 6;
++                double point_duration = 0.000004167 * 6;
+ 
+-                decimal_t t_duration = 1.0 / cfg_.sensing_rate;
+-                decimal_t t_start = t_pattern_start;
++                double t_duration = 1.0 / cfg_.sensing_rate;
++                double t_start = t_pattern_start;
+ 
+                 decimal_t scale_x = 0.48 * cfg_.width / 2.0;
+                 decimal_t scale_y = 0.43 * cfg_.height / 2.0;
+@@ -196,7 +196,7 @@ namespace marsim {
+                 int linestep = ceil(1.4 / 0.2);
+                 // std::cout << "linestep = " << linestep << std::endl;
+ 
+-                for (decimal_t t_i = t_start; t_i < t_start + t_duration; t_i = t_i + point_duration) {
++                for (double t_i = t_start; t_i < t_start + t_duration; t_i = t_i + point_duration) {
+                     int x = round(scale_x * (cos(w1 * t_i) + cos(w2 * t_i))) + round(0.5 * cfg_.width);
+                     int y = round(scale_y * (sin(w1 * t_i) + sin(w2 * t_i))) + round(0.5 * cfg_.height);
+ 
+@@ -236,37 +236,30 @@ namespace marsim {
+             }
+             else if (cfg_.lidar_type == MID_360) {
+                 pattern_matrix.setConstant(0);
+-                decimal_t point_duration = 1.0 / 200000.0;
+-
+-                decimal_t t_duration = 1.0 / cfg_.sensing_rate;
+-                decimal_t t_start = t_pattern_start;
+-
+-                //        decimal_t scale_x = 0.48 * cfg_.width / 2.0;
+-                //        decimal_t scale_y = 0.43 * cfg_.height / 2.0;
+-                decimal_t PI = 3.141519265357;
+-
+-                for (decimal_t t_i = t_start; t_i < t_start + t_duration; t_i = t_i + point_duration) {
+-                    int x = (int(-round(-62050.63 * t_i + 3.11 * cos(314159.2 * t_i) * sin(628.318 * 2 * t_i))) % 360) /
+-                        cfg_.polar_resolution;
+-                    int y = round(
+-                            25.5 * cos(20 * PI * t_i) + 4 * cos(2 * PI / 0.006 * t_i) * cos(10000 * PI * t_i) + 22.5) /
+-                        cfg_.polar_resolution + round(0.5 * cfg_.height);
+-
+-                    // ROS_INFO("X = %d, Y = %d",x,y);
+-                    if (x > (cfg_.width - 1)) {
+-                        x = (cfg_.width - 1);
+-                    }
+-                    else if (x < 0) {
+-                        x = 0;
++                const double point_duration = 1.0 / cfg_.point_rate;
++                const int point_count = static_cast<int>(std::lround(
++                    static_cast<double>(cfg_.point_rate) / cfg_.sensing_rate));
++
++                for (int point_idx = 0; point_idx < point_count; ++point_idx) {
++                    const double t_i = t_pattern_start + point_idx * point_duration;
++                    double azimuth_deg = 62050.63 * t_i
++                        - 3.11 * cos(314159.2 * t_i) * sin(1256.636 * t_i);
++                    azimuth_deg = fmod(azimuth_deg, 360.0);
++                    if (azimuth_deg < 0.0) {
++                        azimuth_deg += 360.0;
+                     }
+-
+-                    if (y > (cfg_.height - 1)) {
+-                        y = (cfg_.height - 1);
+-                    }
+-                    else if (y < 0) {
+-                        y = 0;
+-                    }
+-
++                    const double elevation_deg = 25.5 * cos(20.0 * M_PI * t_i)
++                        + 4.0 * cos(2.0 * M_PI / 0.006 * t_i) * cos(10000.0 * M_PI * t_i)
++                        + 22.5;
++
++                    const int x = CLAMP(
++                        static_cast<int>(floor(azimuth_deg / cfg_.polar_resolution)),
++                        0, cfg_.width - 1);
++                    const int y = CLAMP(
++                        static_cast<int>(round(
++                            (elevation_deg - cfg_.vertical_fov_center) / cfg_.polar_resolution
++                            + 0.5 * cfg_.height)),
++                        0, cfg_.height - 1);
+                     pattern_matrix(x, y) = 2; // real pattern
+                 }
+             }
+@@ -328,6 +321,7 @@ namespace marsim {
+ 
+         glm::vec2 fov = glm::vec2(cfg_.yaw_fov, cfg_.vertical_fov);
+         ourShader.setVec2("fov", fov);
++        ourShader.setFloat("vertical_fov_center", cfg_.vertical_fov_center);
+ 
+         glm::vec2 res = glm::vec2(cfg_.downsample_res, cfg_.polar_resolution);
+         ourShader.setVec2("res", res);
+@@ -439,7 +433,8 @@ namespace marsim {
+             int cen_fi_index = atan2(temp_point_cam_norm(2), sqrt(temp_point_cam_norm(0) * temp_point_cam_norm(0) +
+                                          temp_point_cam_norm(1) * temp_point_cam_norm(1))) /
+                 M_PI *
+-                180.0 / cfg_.polar_resolution + round(0.5 * cfg_.height);
++                180.0 / cfg_.polar_resolution - cfg_.vertical_fov_center / cfg_.polar_resolution
++                + round(0.5 * cfg_.height);
+             if (cen_theta_index < 0 || cen_theta_index >= cfg_.width || cen_fi_index < 0 || cen_fi_index >= cfg_.height)
+                 continue;
+ 
+@@ -503,6 +498,7 @@ namespace marsim {
+         cv::Mat pattern_image = cv::Mat::zeros(cfg_.height, cfg_.width, CV_32F);
+ 
+         const auto polar_resolution_rad = cfg_.polar_resolution / 180.0 * M_PI;
++        const auto vertical_fov_center_rad = cfg_.vertical_fov_center / 180.0 * M_PI;
+         for (int v = 0; v < cfg_.height; v++) {
+             for (int u = 0; u < cfg_.width; u++) {
+                 pattern_image.at<float>(v, u) = 30;
+@@ -514,10 +510,11 @@ namespace marsim {
+                     // }
+                     if (depth > cfg_.sensing_blind && depth < (cfg_.sensing_horizon - 0.1)) {
+                         Eigen::Vector3f temp_point, temp_point_world;
+-                        temp_point(0) = depth * cos(polar_resolution_rad * (v - v0)) * sin(
++                        const auto elevation = vertical_fov_center_rad - polar_resolution_rad * (v - v0);
++                        temp_point(0) = depth * cos(elevation) * sin(
+                             polar_resolution_rad * (u - u0));
+-                        temp_point(1) = -depth * sin(polar_resolution_rad * (v - v0));
+-                        temp_point(2) = -depth * cos(polar_resolution_rad * (v - v0)) * cos(
++                        temp_point(1) = depth * sin(elevation);
++                        temp_point(2) = -depth * cos(elevation) * cos(
+                             polar_resolution_rad * (u - u0));
+ 
+                         temp_point_world = camera2world * (temp_point) + camera;
+@@ -535,10 +532,11 @@ namespace marsim {
+                     else if (depth >= (cfg_.sensing_horizon - 0.1)) {
+                         Eigen::Vector3f temp_point, temp_point_world;
+ 
+-                        temp_point(0) = depth * cos(polar_resolution_rad * (v - v0)) * sin(
++                        const auto elevation = vertical_fov_center_rad - polar_resolution_rad * (v - v0);
++                        temp_point(0) = depth * cos(elevation) * sin(
+                             polar_resolution_rad * (u - u0));
+-                        temp_point(1) = -depth * sin(polar_resolution_rad * (v - v0));
+-                        temp_point(2) = -depth * cos(polar_resolution_rad * (v - v0)) * cos(
++                        temp_point(1) = depth * sin(elevation);
++                        temp_point(2) = -depth * cos(elevation) * cos(
+                             polar_resolution_rad * (u - u0));
+ 
+                         temp_point.normalize();
+diff --git a/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros1_perfect_drone_model.hpp b/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros1_perfect_drone_model.hpp
+index c4a19f1..f88cf12 100755
+--- a/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros1_perfect_drone_model.hpp
++++ b/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros1_perfect_drone_model.hpp
+@@ -12,6 +12,7 @@
+ #include "Eigen/Dense"
+ #include "nav_msgs/Path.h"
+ #include <sensor_msgs/PointCloud2.h>
++#include <mutex>
+ #include "marsim_render/marsim_render.hpp"
+ #include "pcl_conversions/pcl_conversions.h"
+ #include "perfect_drone_sim/config.hpp"
+@@ -58,13 +59,13 @@ namespace perfect_drone {
+             yaw_ = cfg_.init_yaw;
+             mesh_resource_ = cfg_.mesh_resource;
+             q_ = Eigen::AngleAxisd(yaw_, Vec3::UnitZ());
+-            odom_.header.frame_id = "world";
+             odom_pub_timer_ = nh_.createTimer(ros::Duration(0.01), &PerfectDrone::publishOdom, this);
+ 
+             global_pc_pub_timer_ = nh_.createTimer(ros::Duration(0.001), &PerfectDrone::publishGlobalPC, this);
+             path_.poses.clear();
+             path_.header.frame_id = "world";
+             path_.header.stamp = ros::Time::now();
++            sys_start_t_ = ros::Time::now();
+         }
+ 
+         double getSensingRate() {
+@@ -106,13 +107,24 @@ namespace perfect_drone {
+ 
+ 
+         void publishPC() {
++            Vec3 scan_position;
++            Eigen::Quaterniond scan_q;
++            ros::Time scan_stamp;
++            {
++                std::lock_guard<std::mutex> lock(state_mutex_);
++                scan_stamp = ros::Time::now();
++                scan_position = position_;
++                scan_q = q_;
++            }
++
+             pcl::PointCloud<marsim::PointType>::Ptr local_map(new pcl::PointCloud<marsim::PointType>);
+-            render_ptr_->renderOnceInWorld(position_.cast<float>(), q_.cast<float>(), ros::Time::now().toSec(),
++            const double pattern_time = (scan_stamp - sys_start_t_).toSec();
++            render_ptr_->renderOnceInWorld(scan_position.cast<float>(), scan_q.cast<float>(), pattern_time,
+                                            local_map);
+             sensor_msgs::PointCloud2 pc_msg;
+             pcl::toROSMsg(*local_map, pc_msg);
+             pc_msg.header.frame_id = "world";
+-            pc_msg.header.stamp = ros::Time::now();
++            pc_msg.header.stamp = scan_stamp;
+             std::cout << "Publish local map size: " << local_map->size() << std::endl;
+             local_pc_pub_.publish(pc_msg);
+         }
+@@ -127,10 +139,11 @@ namespace perfect_drone {
+         ros::Timer pc_pub_timer_;
+         ros::Timer global_pc_pub_timer_;
+         ros::NodeHandle nh_;
++        ros::Time sys_start_t_;
++        std::mutex state_mutex_;
+         Vec3 position_, velocity_;
+         double yaw_;
+         Eigen::Quaterniond q_;
+-        nav_msgs::Odometry odom_;
+         std::string mesh_resource_;
+ 
+         void cmdCallback(const quadrotor_msgs::PositionCommandConstPtr &msg) {
+@@ -138,6 +151,7 @@ namespace perfect_drone {
+             Vec3 vel(msg->velocity.x, msg->velocity.y, msg->velocity.z);
+             Vec3 acc(msg->acceleration.x, msg->acceleration.y, msg->acceleration.z);
+             double yaw = msg->yaw;
++            std::lock_guard<std::mutex> lock(state_mutex_);
+             updateFlatness(pos, vel, acc, yaw);
+         }
+ 
+@@ -161,57 +175,69 @@ namespace perfect_drone {
+         }
+ 
+         void publishOdom(const ros::TimerEvent &e) {
+-            odom_.pose.pose.position.x = position_.x();
+-            odom_.pose.pose.position.y = position_.y();
+-            odom_.pose.pose.position.z = position_.z();
++            Vec3 odom_position;
++            Vec3 odom_velocity;
++            Eigen::Quaterniond odom_q;
++            ros::Time odom_stamp;
++            {
++                std::lock_guard<std::mutex> lock(state_mutex_);
++                odom_stamp = ros::Time::now();
++                odom_position = position_;
++                odom_velocity = velocity_;
++                odom_q = q_;
++            }
+ 
+-            odom_.pose.pose.orientation.x = q_.x();
+-            odom_.pose.pose.orientation.y = q_.y();
+-            odom_.pose.pose.orientation.z = q_.z();
+-            odom_.pose.pose.orientation.w = q_.w();
++            nav_msgs::Odometry odom;
++            odom.header.frame_id = "world";
++            odom.header.stamp = odom_stamp;
++            odom.pose.pose.position.x = odom_position.x();
++            odom.pose.pose.position.y = odom_position.y();
++            odom.pose.pose.position.z = odom_position.z();
+ 
+-            odom_.twist.twist.linear.x = velocity_.x();
+-            odom_.twist.twist.linear.y = velocity_.y();
+-            odom_.twist.twist.linear.z = velocity_.z();
++            odom.pose.pose.orientation.x = odom_q.x();
++            odom.pose.pose.orientation.y = odom_q.y();
++            odom.pose.pose.orientation.z = odom_q.z();
++            odom.pose.pose.orientation.w = odom_q.w();
++
++            odom.twist.twist.linear.x = odom_velocity.x();
++            odom.twist.twist.linear.y = odom_velocity.y();
++            odom.twist.twist.linear.z = odom_velocity.z();
+             std::ostringstream oss;
+-            oss << std::fixed << std::setprecision(3) << velocity_.norm();  // 设置两位小数
++            oss << std::fixed << std::setprecision(3) << odom_velocity.norm();  // 设置两位小数
+             visualizeText(vel_pub_, "vel",
+                           "Speed: " + oss.str() + " m/s",
+-                          position_, 3.0, 0);
+-
+-            odom_.header.stamp = ros::Time::now();
+-
++                          odom_position, 3.0, 0);
+ 
+-            odom_pub_.publish(odom_);
++            odom_pub_.publish(odom);
+ 
+             geometry_msgs::PoseStamped pose;
+-            pose.pose = odom_.pose.pose;
+-            pose.header = odom_.header;
++            pose.pose = odom.pose.pose;
++            pose.header = odom.header;
+             pose_pub_.publish(pose);
+ 
+             static tf2_ros::TransformBroadcaster br_map_ego;
+             geometry_msgs::TransformStamped transformStamped;
+-            transformStamped.header.stamp = odom_.header.stamp;
++            transformStamped.header.stamp = odom.header.stamp;
+             transformStamped.header.frame_id = "world";
+             transformStamped.child_frame_id = "perfect_drone";
+-            transformStamped.transform.translation.x = odom_.pose.pose.position.x;
+-            transformStamped.transform.translation.y = odom_.pose.pose.position.y;
+-            transformStamped.transform.translation.z = odom_.pose.pose.position.z;
+-            transformStamped.transform.rotation.x = odom_.pose.pose.orientation.x;
+-            transformStamped.transform.rotation.y = odom_.pose.pose.orientation.y;
+-            transformStamped.transform.rotation.z = odom_.pose.pose.orientation.z;
+-            transformStamped.transform.rotation.w = odom_.pose.pose.orientation.w;
++            transformStamped.transform.translation.x = odom.pose.pose.position.x;
++            transformStamped.transform.translation.y = odom.pose.pose.position.y;
++            transformStamped.transform.translation.z = odom.pose.pose.position.z;
++            transformStamped.transform.rotation.x = odom.pose.pose.orientation.x;
++            transformStamped.transform.rotation.y = odom.pose.pose.orientation.y;
++            transformStamped.transform.rotation.z = odom.pose.pose.orientation.z;
++            transformStamped.transform.rotation.w = odom.pose.pose.orientation.w;
+             br_map_ego.sendTransform(transformStamped);
+ 
+             visualization_msgs::Marker meshROS;
+             meshROS.header.frame_id = "world";
+-            meshROS.header.stamp = odom_.header.stamp;
++            meshROS.header.stamp = odom.header.stamp;
+             meshROS.ns = "mesh";
+             meshROS.id = 0;
+             meshROS.type = visualization_msgs::Marker::MESH_RESOURCE;
+             meshROS.action = visualization_msgs::Marker::ADD;
+-            meshROS.pose.position = odom_.pose.pose.position;
+-            meshROS.pose.orientation = odom_.pose.pose.orientation;
++            meshROS.pose.position = odom.pose.pose.position;
++            meshROS.pose.orientation = odom.pose.pose.orientation;
+             meshROS.scale.x = 1;
+             meshROS.scale.y = 1;
+             meshROS.scale.z = 1;
+@@ -224,12 +250,12 @@ namespace perfect_drone {
+             robot_pub_.publish(meshROS);
+             static int slow_down = 0;
+             if (slow_down++ % 10 == 0) {
+-                if ((position_.head(2) - Vec3(0, -50, 1.5).head(2)).norm() < 1) {
++                if ((odom_position.head(2) - Vec3(0, -50, 1.5).head(2)).norm() < 1) {
+                     path_.poses.clear();
+                     path_.poses.reserve(10000);
+                 }
+                 path_.poses.push_back(pose);
+-                path_.header = odom_.header;
++                path_.header = odom.header;
+                 path_pub_.publish(path_);
+             }
+         }
+diff --git a/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros2_perfect_drone_model.hpp b/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros2_perfect_drone_model.hpp
+index 6975204..095a7ea 100755
+--- a/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros2_perfect_drone_model.hpp
++++ b/mars_uav_sim/perfect_drone_sim/include/perfect_drone_sim/ros2_perfect_drone_model.hpp
+@@ -153,7 +153,7 @@ namespace perfect_drone {
+ 
+         void publishPC() {
+             pcl::PointCloud<marsim::PointType>::Ptr local_map(new pcl::PointCloud<marsim::PointType>);
+-            const auto cur_t = this->get_clock()->now().seconds();
++            const auto cur_t = this->get_clock()->now().seconds() - sys_start_t;
+             render_ptr_->renderOnceInWorld(position_.cast<float>(), q_.cast<float>(), cur_t, local_map);
+             sensor_msgs::msg::PointCloud2 pc_msg;
+             pcl::toROSMsg(*local_map, pc_msg);
+@@ -283,4 +283,4 @@ namespace perfect_drone {
+ }
+ 
+ 
+-#endif
+\ No newline at end of file
++#endif

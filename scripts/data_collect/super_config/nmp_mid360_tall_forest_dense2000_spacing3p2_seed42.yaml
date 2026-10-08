@@ -1,0 +1,25 @@
+#############| For UAV simulation |#################################
+pcd_name: "tall_forest_200_dense2000_spacing3p2_seed42.pcd"
+mesh_resource: "package://perfect_drone_sim/meshes/yunque-M.dae"
+init_position:
+  x: 0.0
+  y: 0.0
+  z: 1.5
+init_yaw: 0.0
+
+#############|For LiDAR perception simulation |#####################
+# Uses the same sensor contract as nmp_mid360.yaml; only the map changes.
+# The planner independently re-bins hits to [1,30,180] at 2 degrees and
+# r_max=20 m.
+is_360lidar: true
+polar_resolution: 0.2
+downsample_res: 0.1
+vertical_fov: 59.0
+vertical_fov_center: 22.5
+sensing_blind: 0.1
+sensing_horizon: 40
+sensing_rate: 10
+point_rate: 200000
+print_time_consumption: false
+lidar_type: 3
+depth_image_en: false

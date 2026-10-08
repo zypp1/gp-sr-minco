@@ -1,0 +1,41 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Cheap on every push: lint + syntax compile. No torch, no install of heavy deps.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+      - run: pip install ruff==0.15.16    # pinned for reproducible CI lint
+      - name: Lint
+        run: ruff check src scripts tests
+      - name: Format
+        run: ruff format --check src scripts tests
+      - name: Syntax check (compile only, no imports)
+        run: python -m compileall -q src scripts tests
+
+  # Full tests only on pull requests or manual dispatch: installs CPU torch.
+  tests:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+      - name: Install dependencies (CPU only)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy scipy pytest
+          pip install -e .
+      - name: Tests
+        run: pytest -q

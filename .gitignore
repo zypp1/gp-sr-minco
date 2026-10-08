@@ -1,0 +1,36 @@
+# Python and build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.egg
+*.whl
+.eggs/
+build/
+dist/
+
+# Environments and test/lint caches
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local data, runs, maps, and generated outputs
+/data/
+/saved/
+output/
+visualizations/
+episode-*.npz
+*.pth
+*.pcd
+events.out.tfevents.*
+
+# Editor and operating-system files
+.vscode/
+.idea/
+/.worktrees/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
